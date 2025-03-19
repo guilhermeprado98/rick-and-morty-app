@@ -3,42 +3,59 @@ import { Link } from 'react-router-dom';
 import './Home.css';
 
 const Home = () => {
-  const [characters, setCharacters] = useState([]);
+  const [allCharacters, setAllCharacters] = useState([]);
+  const [filteredCharacters, setFilteredCharacters] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusTerm, setStatusTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [charactersPerPage] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
+    const fetchAllCharacters = async () => {
+      let allData = [];
+      let currentPage = 1;
 
-    const fetchCharacters = async () => {
-      try {
+      while (true) {
         const response = await fetch(`https://rickandmortyapi.com/api/character?page=${currentPage}`);
         const data = await response.json();
-        setCharacters(data.results);
-        setTotalPages(data.info.pages);
-      } catch (error) {
-        console.error('Erro ao buscar personagens:', error);
+        allData = [...allData, ...data.results];
+
+        if (currentPage >= data.info.pages) break;
+        currentPage++;
       }
+
+      setAllCharacters(allData);
+      setFilteredCharacters(allData);
+      setTotalPages(Math.ceil(allData.length / charactersPerPage));
     };
 
-    fetchCharacters();
-  }, [currentPage]);
+    fetchAllCharacters();
+  }, [charactersPerPage]);
 
 
-  const filteredCharacters = characters.filter(character =>
-    character.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    character.status.toLowerCase().includes(statusTerm.toLowerCase())
-  );
+  useEffect(() => {
+    const filtered = allCharacters.filter(character =>
+      character.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      character.status.toLowerCase().includes(statusTerm.toLowerCase())
+    );
+    setFilteredCharacters(filtered);
+    setTotalPages(Math.ceil(filtered.length / charactersPerPage));
+  }, [searchTerm, statusTerm, allCharacters]);
+
+
+  const indexOfLastCharacter = currentPage * charactersPerPage;
+  const indexOfFirstCharacter = indexOfLastCharacter - charactersPerPage;
+  const currentCharacters = filteredCharacters.slice(indexOfFirstCharacter, indexOfLastCharacter);
 
   return (
     <div className="home-container">
       <h1 className="home-title">Personagens de Rick and Morty</h1>
 
-      {/*total de personagens */}
-      <p className="total-characters">Total de personagens: {characters.length}</p>
+      {/* Total de personagens filtrados */}
+      <p className="total-characters">Total de personagens encontrados: {filteredCharacters.length}</p>
 
-      {/*Pesquisa de Nome */}
+      {/* Barra de pesquisa de nome */}
       <input
         type="text"
         className="search-input"
@@ -47,7 +64,7 @@ const Home = () => {
         onChange={(e) => setSearchTerm(e.target.value)}
       />
 
-      {/* Pesquisa de Status */}
+      {/* Barra de pesquisa de status */}
       <input
         type="text"
         className="search-input"
@@ -56,18 +73,17 @@ const Home = () => {
         onChange={(e) => setStatusTerm(e.target.value)}
       />
 
-      {/* Lista de Personagens */}
+      {/* Lista de personagens */}
       <div className="characters-grid">
-        {filteredCharacters.map((character) => (
+        {currentCharacters.map((character) => (
           <div key={character.id} className="character-card">
-            <Link to={`/character/${character.id}`}>
-              <img className="character-image" src={character.image} alt={character.name} />
-              <div className="character-info">
-                <h3>{character.name}</h3>
-                <p>{character.species}</p>
-                <p><strong>Status:</strong> {character.status}</p>
-              </div>
-            </Link>
+           <Link to={`/character/${character.id}?page=${currentPage}`}>
+            <img className="character-image" src={character.image} alt={character.name} />
+            <div className="character-info">
+              <h3>{character.name}</h3>
+              <p><strong>Status:</strong> {character.status}</p>
+            </div>
+          </Link>
           </div>
         ))}
       </div>
